@@ -1,4 +1,4 @@
-function [A, error_fit] = model_fit(method,model, window, n_samples, t_span)
+function [A, error_fit, U, S, V] = model_fit(method,model, window, n_samples, t_span)
 
 t_steps = t_span/model.dt;
 
@@ -87,7 +87,7 @@ elseif strcmp(method, 'wDMD')
     rank(X)
     disp('number of rows of X');
     size(X,1)
-
+    [U, S, V] = svd(X);
     A = Xprime*pinv(X);
 
     error_fit = Xprime - A*X;

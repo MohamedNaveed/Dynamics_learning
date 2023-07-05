@@ -9,17 +9,12 @@ model = pendulum_model();
 %% ensemble data fit - training
 method = 'wDMD'; %'ARMA' | 'wDMD'
 n_samples = 100;
-window = 10;
+window = 30;
 t_span = 6; %total time period
 
-[A, error_fit, U, S, V] = model_fit(method, model, window, n_samples, t_span);
+[A, error_fit] = model_fit(method, model, window, n_samples, t_span);
 
-fprintf('Max training error = %d \n', max(max(error_fit)));
-
-%% plot singular values of S
-
-figure;
-plot(1:size(S,1), diag(S), 'LineWidth',2);
+fprintf('Max training error = %d \n', max(max(error_fit));
 
 %% monte_carlo test - testing
 
@@ -53,5 +48,4 @@ plot(x_idxs, error_mean(2,y_idxs) - error_std(1,y_idxs),'--r','LineWidth',2);
 ylabel('error - theta dot');
 xlabel('time');
 
-saveas(fig,'DMD_w10_tr6_ts10.jpg')
-
+saveas(fig,'DMD_w30_tr6_ts10.jpg')
