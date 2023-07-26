@@ -149,11 +149,6 @@ rank(X)
 disp('length of A')
 length(A_wDMD)
 
-%%
-
-error_fit = Xprime - A_wDMD*X;
-
-fprintf('Max training error A = %d \n', max(max(error_fit)));
 %% prediction using A
 
 x_wDMD = zeros(model.nx,t_steps+1);
@@ -178,7 +173,7 @@ end
 error = (x - x_wDMD)./x_max;
 %% plot the data.
 
-fig=figure(4);
+figure(4);
 subplot(2,1,1);
 hold on;
 plot(0:model.dt:t_span, error(1,:)./x_max(1),'b','LineWidth',2); 
@@ -196,7 +191,7 @@ ylabel('error - theta dot');
 xlabel('time');
 saveas(fig,'error_w_20_x0_90.pdf')
 
-fig=figure(5);
+figure(5);
 subplot(2,1,1);
 hold on;
 plot(0:model.dt:t_span, x(1,:)./x_max(1),'b','LineWidth',2); 
@@ -216,8 +211,6 @@ x_idx = (n_samples + window)*model.dt;
 plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2);
 ylabel('error - theta dot');
 xlabel('time');
-saveas(fig,'wDMD_w_20_x0_90.pdf')
-
 
 %% ARMA model. 1 sample
 

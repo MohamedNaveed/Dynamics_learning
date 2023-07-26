@@ -12,7 +12,12 @@ if strcmp(method,'wDMD')
     x_DMD = zeros(model.nx,t_steps+1);
 
     for n = 1:n_mc_runs
-        x0_theta = unifrnd(0,ini_angle);
+        
+         if n_mc_runs > 1
+            x0_theta = unifrnd(0,ini_angle); %if randomized sample
+        else
+            x0_theta = ini_angle;
+        end
         x0 = [deg2rad(x0_theta),0];
         x(:,1) = x0;
         x_DMD(:,1) = x0;
