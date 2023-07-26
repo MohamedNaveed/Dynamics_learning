@@ -20,7 +20,7 @@ if strcmp(method, 'ARMA')
 
         for i = 1:t_steps
 
-            x(:,i+1) = pendulum_nl_state_prop(i,x(:,i),control,model); %true
+            x(:,i+1) = model.state_propagate(i,x(:,i),control,model); %true
             
             if i < window
             
@@ -39,10 +39,8 @@ if strcmp(method, 'ARMA')
         
         
     end
-    disp('rank of X =')
-    rank(X)
-    disp('number of rows of X');
-    size(X,1)
+    fprintf('Rank of X matrix: %d \n', rank(X));
+    fprintf('Number of rows in X: %d \n', size(X,1));
 
     A = Xprime*pinv(X);
 
@@ -56,30 +54,31 @@ elseif strcmp(method, 'wDMD')
     for n = 1:n_samples
         
         if n_samples > 1
-            x0_theta = unifrnd(0,ini_angle); %if randomized sample
+            x0_theta = unifrnd(0,ini_angle); %if randomized samples
         else
             x0_theta = ini_angle;
         end
         
         x0 = [deg2rad(x0_theta),0];
         x(:,1) = x0;
-        y_arma = zeros(model.nx*window,1); %arma state
-        y_arma(model.nx*(window - 1) + 1: model.nx*window) = x0;
-
+        y = zeros(model.nx*window,1); %concatenated state / stacked
+        y(model.nx*(window - 1) + 1: model.nx*window) = x0;
+        
+        % building data matrix. 
         for i = 1:t_steps
 
-            x(:,i+1) = pendulum_nl_state_prop(i,x(:,i),control,model); %true
+            x(:,i+1) = model.state_propagate(i,x(:,i),control,model); %true (simulating dynamics)
             
             if i < window
             
-                y_arma(model.nx*(window - i - 1) + 1:model.nx*(window - i)) = x(:,i+1);
+                y(model.nx*(window - i - 1) + 1:model.nx*(window - i)) = x(:,i+1);
             
             else
                 idx = (n-1)*(t_steps - window + 1) + (i - window) + 1;
-                X(:, idx) = y_arma;  % build data matrix
+                X(:, idx) = y;  % build data matrix
                  
-                y_arma = [x(:,i+1);y_arma(1:model.nx*(window-1))];
-                Xprime(:,idx) = y_arma;
+                y = [x(:,i+1);y(1:model.nx*(window-1))];
+                Xprime(:,idx) = y;
 
             end
             
@@ -88,19 +87,21 @@ elseif strcmp(method, 'wDMD')
         
         
     end
-    disp('rank of X =')
-    rank(X)
-    disp('number of rows of X');
-    size(X,1)
-    [U, S, V] = svd(X);
-    A = Xprime*pinv(X);
-    thresh = 0.99999;
-    diag_S = diag(S);
-    sum_S = sum(diag_S);
+    fprintf('Rank of X matrix: %d \n', rank(X));
+    fprintf('Number of rows in X: %d \n', size(X,1));
+
+    [U, S, V] = svd(X); %SVD of the data matrix 
     
+    A = Xprime*pinv(X); %exact reconstruction of A (includes all the modes) 
+    
+    thresh = 0.99999; % threshold for selecting the modes 
+    diag_S = diag(S);
+    sum_S = sum(diag_S); % sum of all the singular values. 
+    
+    % finding the number of modes to meet the threshold (thresh) value.
     for S_i = 1:length(diag_S)
        
-        sum_S_i = sum(diag_S(1:S_i));
+        sum_S_i = sum(diag_S(1:S_i)); % partial sum of all the singular values. 
         
         if sum_S_i/sum_S >= thresh
             r = S_i;
@@ -108,10 +109,10 @@ elseif strcmp(method, 'wDMD')
         end      
     end
     
-    A_r = Xprime*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)';
+    A_r = Xprime*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
     
-    error_fit_Ar = Xprime - A_r*X;
-    error_fit = Xprime - A*X;
+    error_fit_Ar = Xprime - A_r*X; % training error using Ar
+    error_fit = Xprime - A*X;  %training error using A
 end
 
 end

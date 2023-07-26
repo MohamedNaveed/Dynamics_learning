@@ -26,7 +26,7 @@ if strcmp(method,'wDMD')
 
         for i = 1:t_steps
     
-            x(:,i+1) = pendulum_nl_state_prop(i,x(:,i),control,model); %true
+            x(:,i+1) = model.state_propagate(i,x(:,i),control,model); %true
 
             if i < window
                 x_DMD(:,i+1) = x(:,i+1); 
@@ -66,7 +66,7 @@ elseif strcmp(method, 'ARMA')
 
         for i = 1:t_steps
     
-            x(:,i+1) = pendulum_nl_state_prop(i,x(:,i),control,model); %true
+            x(:,i+1) = model.state_propagate(i,x(:,i),control,model); %true
 
             if i < window
                 x_arma(:,i+1) = x(:,i+1); 

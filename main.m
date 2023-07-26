@@ -1,23 +1,22 @@
 % main file 
 clc;clear;
 
-%% define pendulum  
+%% define pendulum      
 model = pendulum_model(); 
-x0 = [deg2rad(90),0]; %initial state. 0 - pendulum hanging downwards. 15
+x0 = [deg2rad(90),0]; %initial state (deg) . 0 - pendulum hanging downwards. 
 
-%% simulate the pendulum motion
+%% simulate the pendulum motion (ground truth data)
 
-t_span = 20; % (s)
-t_steps = t_span/model.dt;
-x = zeros(model.nx, t_steps+1);
+t_span = 20; % (seconds) 
+t_steps = t_span/model.dt; % number of time steps
+x = zeros(model.nx, t_steps+1); % state
 
-%sample path 1
 x(:,1) = x0;
-control = 0;
+control = 0; % No control actions. 
 
 for i = 1:t_steps
     
-    x(:,i+1) = pendulum_nl_state_prop(i,x(:,i),control,model);
+    x(:,i+1) = model.state_propagate(i,x(:,i),control,model); % find the next state.
     
 end
 
@@ -25,34 +24,33 @@ end
 x_max = max(x,[],2); % max value for normalization.
 
 
-
-%% plot the data.
+%% plot the simulated data.
 
 fig = figure(1);
 subplot(2,1,1);
 plot(0:model.dt:t_span, x(1,:),'LineWidth',2); 
 ylabel('theta');
+title('Response of the system');
 subplot(2,1,2);
 plot(0:model.dt:t_span, x(2,:),'LineWidth',2); 
 ylabel('theta dot');
 xlabel('time');
+
 set(fig,'Units','inches');
 screenposition = get(fig,'Position');
 set(fig,...
     'PaperPosition',[0 0 screenposition(3:4)],...
         'PaperSize',[screenposition(3:4)]);
 
-%% simple DMD
+%% exact DMD
 
-%data matrix
+X = x(:,1:end-1);  % data matrix
 
-
-X = x(:,1:end-1); 
 Xprime = x(:,2:end);
  
 % solve for A 
 
-A_DMD = Xprime*pinv(X);
+A_DMD = Xprime*pinv(X); % finding the A matrix that fits the data. (keeping all the modes)
 
 
 %% prediction using A
@@ -77,11 +75,14 @@ subplot(2,1,1);
 hold on;
 plot(0:model.dt:t_span, error(1,:),'b','LineWidth',2); 
 ylabel('error - theta');
+title('Error between DMD predictions and true data');
+
 subplot(2,1,2);
 hold on;
 plot(0:model.dt:t_span, error(2,:),'b','LineWidth',2); 
 ylabel('error - theta dot');
 xlabel('time');
+
 
 figure(3);
 subplot(2,1,1);
@@ -90,6 +91,8 @@ plot(0:model.dt:t_span, x(1,:)./x_max(1),'b','LineWidth',2);
 plot(0:model.dt:t_span, x_DMD(1,:)./x_max(1),'--r','LineWidth',2); 
 ylabel('error - theta');
 legend('True','DMD');
+title('Predicted response using DMD');
+
 subplot(2,1,2);
 hold on;
 plot(0:model.dt:t_span, x(2,:)./x_max(2), 'b','LineWidth',2); 
@@ -97,34 +100,15 @@ plot(0:model.dt:t_span, x_DMD(2,:)./x_max(2),'--r','LineWidth',2);
 ylabel('error - theta dot');
 xlabel('time');
 
-%% monte_carlo test
 
-[error_mean_DMD, error_std_DMD] = monte_carlo_test(A_DMD, 'DMD', model);
+%% Hankel/Window DMD
 
-figure;
-subplot(2,1,1);
-hold on;
-plot(0:model.dt:t_span, error_mean_DMD(1,:),'b','LineWidth',2);
-plot(0:model.dt:t_span, error_mean_DMD(1,:) + error_std_DMD(1,:),'--r','LineWidth',2);
-plot(0:model.dt:t_span, error_mean_DMD(1,:) - error_std_DMD(1,:),'--r','LineWidth',2);
-ylabel('error - theta');
-subplot(2,1,2);
-hold on;
-plot(0:model.dt:t_span, error_mean_DMD(2,:),'b','LineWidth',2);
-plot(0:model.dt:t_span, error_mean_DMD(2,:) + error_std_DMD(1,:),'--r','LineWidth',2);
-plot(0:model.dt:t_span, error_mean_DMD(2,:) - error_std_DMD(1,:),'--r','LineWidth',2);
- 
-ylabel('error - theta dot');
-xlabel('time');
-%}
-
-%% window DMD
-
-window = 20;
-n_samples = 80;
+window = 20; % window / time delayed samples considered for Hankel DMD.
+n_samples = 81; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
+% creating the data matrix.
 for w = 1:window
     
     X(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) : ...
@@ -144,21 +128,20 @@ end
 % solve for A 
 
 A_wDMD = Xprime*pinv(X);
-disp('rank of X')
-rank(X)
-disp('length of A')
-length(A_wDMD)
+fprintf('Rank of X matrix: %d \n', rank(X));
+fprintf('Size of A matrix: %d \n', length(A_wDMD));
 
-%%
+%% calculate error in the training data.
 
 error_fit = Xprime - A_wDMD*X;
 
-fprintf('Max training error A = %d \n', max(max(error_fit)));
+fprintf('Max training error using A = %d \n', max(max(error_fit)));
+
 %% prediction using A
 
 x_wDMD = zeros(model.nx,t_steps+1);
 
-y_wDMD = zeros(model.nx*window,1); %observable
+y_wDMD = zeros(model.nx*window,1); % observable. stacked observable for Hankel DMD.
 
 %initial condition
 for w = 1:window
@@ -176,25 +159,28 @@ end
 %% error 
 
 error = (x - x_wDMD)./x_max;
+
 %% plot the data.
 
 fig=figure(4);
 subplot(2,1,1);
 hold on;
-plot(0:model.dt:t_span, error(1,:)./x_max(1),'b','LineWidth',2); 
+plot(0:model.dt:t_span, error(1,:),'b','LineWidth',2); 
 y = ylim; % current y-axis limits
-x_idx = (n_samples + window)*model.dt;
+x_idx = (window)*model.dt;
 plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2);
 ylabel('error - theta');
+title('Error between wDMD predictions and true data');
+
 subplot(2,1,2);
 hold on;
-plot(0:model.dt:t_span, error(2,:)./x_max(2),'b','LineWidth',2); 
+plot(0:model.dt:t_span, error(2,:),'b','LineWidth',2); 
 y = ylim; % current y-axis limits
-x_idx = (n_samples + window)*model.dt;
-plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2);
+x_idx = (window)*model.dt;
+plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2); % to show the prediction starting point
 ylabel('error - theta dot');
 xlabel('time');
-saveas(fig,'error_w_20_x0_90.pdf')
+%saveas(fig,'error_w_20_x0_90.pdf')
 
 fig=figure(5);
 subplot(2,1,1);
@@ -202,38 +188,40 @@ hold on;
 plot(0:model.dt:t_span, x(1,:)./x_max(1),'b','LineWidth',2); 
 plot(0:model.dt:t_span, x_wDMD(1,:)./x_max(1),'--r','LineWidth',2); 
 y = ylim; % current y-axis limits
-x_idx = (n_samples + window)*model.dt;
+x_idx = (window)*model.dt;
 plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2);
 ylabel('error - theta');
 legend('True','wDMD');
+title('Predicted response using wDMD');
+
 subplot(2,1,2);
 hold on;
 plot(0:model.dt:t_span, x(2,:)./x_max(2), 'b','LineWidth',2); 
 plot(0:model.dt:t_span, x_wDMD(2,:)./x_max(2),'--r','LineWidth',2);
 ylim([-1,1])
 y = ylim; % current y-axis limits
-x_idx = (n_samples + window)*model.dt;
+x_idx = (window)*model.dt;
 plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2);
 ylabel('error - theta dot');
 xlabel('time');
-saveas(fig,'wDMD_w_20_x0_90.pdf')
+%saveas(fig,'wDMD_w_20_x0_90.pdf')
 
+%% Comparison with Autoregressive model.
+%{ 
+ 
 
-%% ARMA model. 1 sample
+%% Autoregressive AR model. 
 
-X = zeros(model.nx*window,2*n_samples);
+X = zeros(model.nx*window,n_samples);
 
+% creating data matrix
 for w = 1:window
     
     X(model.nx*(w-1) +1:model.nx*w,1:n_samples) = x(:,window - (w - 1) : ...
                                            window - (w - 1) + n_samples -1);
-    X(model.nx*(w-1) +1:model.nx*w,n_samples+ 1: 2*n_samples) = x_2(:,window - (w - 1) : ...
-                                           window - (w - 1) + n_samples -1);
-
 end
 
-Xprime_arma = [x(:,window + 1 : window + n_samples ), ...
-                x_2(:,window + 1 : window + n_samples )];
+Xprime_arma = x(:,window + 1 : window + n_samples );
     
 A_arma = Xprime_arma*pinv(X);
 
@@ -259,6 +247,7 @@ end
 %% error 
 
 error = (x - x_arma)./x_max;
+
 %% plot the data.
 
 figure(6);
@@ -267,6 +256,8 @@ subplot(2,1,1);
 hold on;
 plot(0:model.dt:t_span, error(1,:)./x_max(1),'b','LineWidth',2); 
 ylabel('error - theta');
+title('Error between AR predictions and true data');
+
 subplot(2,1,2);
 hold on;
 plot(0:model.dt:t_span, error(2,:)./x_max(2),'b','LineWidth',2); 
@@ -276,6 +267,7 @@ xlabel('time');
 %% error 
 
 error = (x_wDMD - x_arma)./x_max;
+
 %% plot the data.
 
 figure(7);
@@ -290,31 +282,4 @@ hold on;
 plot(0:model.dt:t_span, error(2,:)./x_max(2),'b','LineWidth',2); 
 ylabel('error - theta dot');
 xlabel('time');
-
-%% ensemble data fit - training
-n_samples = 100;
-window = 10;
-[A_arma, error_fit_arma] = model_fit('ARMA', model, window, n_samples);
-
-%% monte_carlo test - testing
-n_mc_runs = 100;
-[error_mean_arma, error_std_arma] = monte_carlo_test(A_arma, 'ARMA', model,...
-                                    window, n_mc_runs);
-
-%%
-figure;
-subplot(2,1,1);
-hold on;
-plot(0:model.dt:t_span, error_mean_arma(1,:),'b','LineWidth',2);
-plot(0:model.dt:t_span, error_mean_arma(1,:) + error_std_arma(1,:),'--r','LineWidth',2);
-plot(0:model.dt:t_span, error_mean_arma(1,:) - error_std_arma(1,:),'--r','LineWidth',2);
-ylabel('error - theta');
-subplot(2,1,2);
-hold on;
-plot(0:model.dt:t_span, error_mean_arma(2,:),'b','LineWidth',2);
-plot(0:model.dt:t_span, error_mean_arma(2,:) + error_std_arma(1,:),'--r','LineWidth',2);
-plot(0:model.dt:t_span, error_mean_arma(2,:) - error_std_arma(1,:),'--r','LineWidth',2);
- 
-ylabel('error - theta dot');
-xlabel('time');
-
+%}
