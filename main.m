@@ -3,7 +3,7 @@ clc;clear;
 
 %% define pendulum  
 model = pendulum_model(); 
-x0 = [deg2rad(90),0]; %initial state. 0 - pendulum hanging downwards. 15
+x0 = [deg2rad(120),0]; %initial state. 0 - pendulum hanging downwards. 15
 
 %% simulate the pendulum motion
 
@@ -21,26 +21,13 @@ for i = 1:t_steps
     
 end
 
-%sample path 2
-x0 = [deg2rad(60),0];
-x_2 = zeros(model.nx, t_steps+1);
-x_2(:,1) = x0;
-control = 0;
-
-for i = 1:t_steps
-    
-    x_2(:,i+1) = pendulum_nl_state_prop(i,x_2(:,i),control,model);
-    
-end
-
-
 
 x_max = max(x,[],2); % max value for normalization.
 
-%{
+
 %% plot the data.
 
-figure(1);
+fig = figure(1);
 subplot(2,1,1);
 plot(0:model.dt:t_span, x(1,:),'LineWidth',2); 
 ylabel('theta');
@@ -48,6 +35,12 @@ subplot(2,1,2);
 plot(0:model.dt:t_span, x(2,:),'LineWidth',2); 
 ylabel('theta dot');
 xlabel('time');
+set(fig,'Units','inches');
+screenposition = get(fig,'Position');
+set(fig,...
+    'PaperPosition',[0 0 screenposition(3:4)],...
+        'PaperSize',[screenposition(3:4)]);
+saveas(fig,'sample_theta_120.pdf')
 
 %% simple DMD
 

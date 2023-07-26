@@ -1,4 +1,4 @@
-function [A, error_fit, U, S, V] = model_fit(method,model, window, n_samples, t_span)
+function [A, A_r, error_fit, error_fit_Ar, U, S, V] = model_fit(method,model, window, n_samples, t_span, ini_angle)
 
 t_steps = t_span/model.dt;
 
@@ -6,13 +6,13 @@ control = 0;
 x = zeros(model.nx, window + 1);
 
 if strcmp(method, 'ARMA')
-    
+    rng(0);
     X = zeros(model.nx*window, n_samples*(t_steps - window + 1));
     Xprime = zeros(model.nx, n_samples*(t_steps - window + 1));
 
     for n = 1:n_samples
 
-        x0_theta = unifrnd(0,90);
+        x0_theta = unifrnd(0,ini_angle);
         x0 = [deg2rad(x0_theta),0];
         x(:,1) = x0;
         y_arma = zeros(model.nx*window,1); %arma state
@@ -49,13 +49,13 @@ if strcmp(method, 'ARMA')
     error_fit = Xprime - A*X;
 
 elseif strcmp(method, 'wDMD')
-    
+    rng(0);
     X = zeros(model.nx*window, n_samples*(t_steps - window + 1));
     Xprime = zeros(model.nx*window, n_samples*(t_steps - window + 1));
 
     for n = 1:n_samples
 
-        x0_theta = unifrnd(0,90);
+        x0_theta = unifrnd(0,ini_angle);
         x0 = [deg2rad(x0_theta),0];
         x(:,1) = x0;
         y_arma = zeros(model.nx*window,1); %arma state
@@ -89,7 +89,23 @@ elseif strcmp(method, 'wDMD')
     size(X,1)
     [U, S, V] = svd(X);
     A = Xprime*pinv(X);
-
+    thresh = 0.99999;
+    diag_S = diag(S);
+    sum_S = sum(diag_S);
+    
+    for S_i = 1:length(diag_S)
+       
+        sum_S_i = sum(diag_S(1:S_i));
+        
+        if sum_S_i/sum_S >= thresh
+            r = S_i;
+            break;
+        end      
+    end
+    
+    A_r = Xprime*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)';
+    
+    error_fit_Ar = Xprime - A_r*X;
     error_fit = Xprime - A*X;
 end
 

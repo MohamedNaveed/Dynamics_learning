@@ -1,5 +1,5 @@
 function [error_mean, error_std] = monte_carlo_test(A,method,model, window,...
-                    n_mc_runs, t_span)
+                    n_mc_runs, t_span, ini_angle)
 
 t_steps = t_span/model.dt;
 control = 0;
@@ -8,10 +8,11 @@ error_x1 = zeros(n_mc_runs, t_steps+1);
 error_x2 = zeros(n_mc_runs, t_steps+1);
 
 if strcmp(method,'wDMD')
+    rng(0);
     x_DMD = zeros(model.nx,t_steps+1);
 
     for n = 1:n_mc_runs
-        x0_theta = unifrnd(0,90);
+        x0_theta = unifrnd(0,ini_angle);
         x0 = [deg2rad(x0_theta),0];
         x(:,1) = x0;
         x_DMD(:,1) = x0;
@@ -47,7 +48,7 @@ if strcmp(method,'wDMD')
     error_std = [error_x1_std; error_x2_std];
 
 elseif strcmp(method, 'ARMA')
-
+    rng(0);
     x_arma = zeros(model.nx,t_steps+1);
 
     for n = 1:n_mc_runs
