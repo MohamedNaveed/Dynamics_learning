@@ -130,10 +130,7 @@ end
     
  
     
-thresh = 0.99999; % threshold for selecting the modes 
-                   % 1 - for selecting all the modes. 
-                   % 0.99999 - 99.999% energy in the modes
-
+thresh = 1;%0.99999; % threshold for selecting the modes 
 diag_S = diag(S);
 sum_S = sum(diag_S); % sum of all the singular values. 
 
@@ -192,7 +189,7 @@ error = (x - x_wDMD)./x_max;
 fig=figure(4);
 subplot(2,1,1);
 hold on;
-plot(0:model.dt:t_span, error(1,:),'b','LineWidth',2, 'HandleVisibility','off'); 
+plot(0:model.dt:t_span, error(1,:),'b','LineWidth',2, ); 
 y = ylim; % current y-axis limits
 x_idx = (window)*model.dt;
 plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2, 'DisplayName', 'Predictions start');
