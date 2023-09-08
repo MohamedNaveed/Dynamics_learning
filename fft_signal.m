@@ -1,4 +1,4 @@
-function [output] = fft_signal(signal, model)
+function [output] = fft_signal(signal, model, fig_title)
 
 T = model.dt; %time period
 Fs = 1/T; %sampling frequency
@@ -21,7 +21,7 @@ figure;
 subplot(2,1,1)
 plot(f,abs(P1(1,:)),'LineWidth',3);
 ylabel('theta');
-title('FFT')
+title(fig_title)
 subplot(2,1,2)
 plot(f,abs(P1(2,:)),'LineWidth',3);
 ylabel('theta dot');

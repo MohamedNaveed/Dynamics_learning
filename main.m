@@ -40,7 +40,7 @@ error_true_evol = error_true_evol./x_max;
 
 %% plot the data.
 
-figure(10);
+figure;
 subplot(2,1,1);
 hold on;
 plot(0:model.dt:t_span, error_true_evol(1,:),'b','LineWidth',2); 
@@ -58,7 +58,8 @@ xlabel('time');
 t_span_plot = 20;
 t_step_plot = t_span_plot/model.dt + 1; 
 t_idxs = (0:t_step_plot-1)*model.dt;
-fig = figure(1);
+
+fig = figure;
 subplot(2,1,1);
 plot(t_idxs, x(1,1:t_step_plot),'LineWidth',2); 
 ylabel('theta');
@@ -74,7 +75,7 @@ set(fig,...
     'PaperPosition',[0 0 screenposition(3:4)],...
         'PaperSize',[screenposition(3:4)]);
 
-fig = figure(7);
+fig = figure;
 plot(x(1,1:t_step_plot),x(2,1:t_step_plot),'LineWidth',0.5);
 ylabel('theta dot');
 xlabel('theta');
@@ -82,7 +83,7 @@ title('Phase portrait');
 
 %% FFT 
 
-fft_signal(x(:,1:t_step_plot), model);
+fft_signal(x(:,1:t_step_plot), model, 'FFT of True data');
 
 %% Hankel/Window DMD
 
@@ -174,7 +175,7 @@ error = (x - x_wDMD)./x_max;
 
 %% plot the data.
 
-fig=figure(4);
+fig=figure;
 subplot(2,1,1);
 hold on;
 
@@ -196,7 +197,7 @@ ylabel('error - theta dot');
 xlabel('time');
 %saveas(fig,'error_w_20_x0_90.pdf')
 
-fig=figure(5);
+fig=figure;
 subplot(2,1,1);
 hold on;
 plot(0:model.dt:t_span, x(1,:)./x_max(1),'b','LineWidth',2); 
@@ -222,8 +223,8 @@ xlabel('time');
 
 
 %% fft of error.
-fft_signal(error, model);
-fft_signal(x_wDMD, model);
+fft_signal(error, model, 'FFT of error');
+fft_signal(x_wDMD, model, 'FFT of wDMD predictions');
 
 %% Comparison with Autoregressive model. 
 
@@ -273,7 +274,7 @@ error = (x - x_arma)./x_max;
 
 %% plot the data.
 
-figure(6);
+figure;
 
 subplot(2,1,1);
 hold on;
@@ -299,7 +300,7 @@ error = (x_wDMD - x_arma)./x_max;
 
 %% plot the data.
 
-figure(7);
+figure;
 
 subplot(2,1,1);
 title('Error between ARMA and wDMD');
