@@ -1,0 +1,65 @@
+% modeling periodic signals using AR model.
+clc;clear;
+
+%% define signal
+fs = 100; % sampling freq.
+dt = 1/fs; % sampling interval
+t = 0:dt:10;
+f1 = 1;
+f2 = 2;
+
+%x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t);
+x = sin(2*pi*f1*t);
+
+figure;
+plot(t, x, 'LineWidth',2);
+ylabel('signal');
+xlabel('time');
+title('true signal');
+
+%% plot fft.
+model.dt = dt;
+fft_signal(x,model,'FFT of True signal');
+
+%% fit AR model.
+
+window = 20; % window / time delayed samples considered for Hankel DMD.
+n_samples = 81; % training samples columns of X
+
+X = zeros(model.nx*window,n_samples);
+
+% creating the data matrix.
+for w = 1:window
+    
+    X(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) : ...
+                                           window - (w - 1) + n_samples -1);
+    
+end
+
+[U, S, V] = svd(X); %SVD of the data matrix 
+
+Xprime_arma = x(:,window + 1 : window + n_samples );
+
+thresh = 0.99999; % threshold for selecting the modes 
+                   % 1 - for selecting all the modes. 
+                   % 0.99999 - 99.999% energy in the modes
+
+diag_S = diag(S);
+sum_S = sum(diag_S); % sum of all the singular values. 
+
+if thresh == 1
+    A_arma = Xprime_arma*pinv(X); %exact reconstruction of A (includes all the modes)
+else
+    % finding the reduced number of modes to meet the threshold (thresh) value.
+    for S_i = 1:length(diag_S)
+   
+        sum_S_i = sum(diag_S(1:S_i)); % partial sum of all the singular values. 
+    
+        if sum_S_i/sum_S >= thresh
+            r = S_i;
+            break;
+        end      
+    end
+    
+    A_arma = Xprime_arma*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
+end
