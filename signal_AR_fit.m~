@@ -4,27 +4,33 @@ clc;clear;
 %% define signal
 fs = 100; % sampling freq.
 dt = 1/fs; % sampling interval
-t = 0:dt:10;
+model.dt = dt;
+model.nx = 1;
+t_span = 10;
+t = 0:dt:t_span;
+t_steps = t_span/dt;
 f1 = 1;
-f2 = 2;
+f2 = 10;
+f3 = 11;
+f4 = 30;
+f5 = 120; %freq out of domain sampling
 
-%x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t);
-x = sin(2*pi*f1*t);
+%x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t) + 0.5*sin(2*pi*f3*t)+ 0.5*sin(2*pi*f4*t);
+%x = sin(2*pi*f1*t)./((t+1).^3);
+x = sin(2*pi*f1*t) + sin(2*pi*f*t;
+x_max = max(x);
 
-figure;
-plot(t, x, 'LineWidth',2);
-ylabel('signal');
-xlabel('time');
-title('true signal');
+
+save_path = "/home/naveed/Documents/Dynamics_learning/plots/signals/1_sine/decay_w_2_exp/";
 
 %% plot fft.
-model.dt = dt;
-fft_signal(x,model,'FFT of True signal');
+
+fig = fft_signal(x,model,'FFT of True signal');
+saveas(fig, save_path + "fft_true.jpg");
 
 %% fit AR model.
-
-window = 20; % window / time delayed samples considered for Hankel DMD.
-n_samples = 81; % training samples columns of X
+window = 2; % window / time delayed samples considered.
+n_samples = 1.0/model.dt; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
@@ -43,8 +49,11 @@ Xprime_arma = x(:,window + 1 : window + n_samples );
 thresh = 0.99999; % threshold for selecting the modes 
                    % 1 - for selecting all the modes. 
                    % 0.99999 - 99.999% energy in the modes
-
-diag_S = diag(S);
+if size(S,1) == 1
+    diag_S = S(1);
+else
+    diag_S = diag(S);
+end
 sum_S = sum(diag_S); % sum of all the singular values. 
 
 if thresh == 1
@@ -63,3 +72,63 @@ else
     
     A_arma = Xprime_arma*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
 end
+
+%% prediction using A
+
+x_arma = zeros(model.nx,t_steps+1);
+
+y_arma = zeros(model.nx*window,1); %observable
+
+%initial condition
+for w = 1:window
+    y_arma(model.nx*(window - w) + 1:model.nx*(window - w + 1)) = x(:,w);
+end
+
+x_arma(:,1:window) = x(:,1:window); %assume same for the first few steps. 
+
+for i = window:t_steps
+
+    x_arma(:,i+1) = A_arma*y_arma; 
+    y_arma = [x_arma(:,i+1);y_arma(1:model.nx*(window-1))];
+end
+
+%% error 
+
+error = (x - x_arma)./x_max;
+
+%% plot the data.
+fig = fft_signal(x_arma,model,'FFT of AR predictions');
+saveas(fig, save_path + "fft_ar.jpg");
+fig = fft_signal(error,model,'FFT of error');
+saveas(fig, save_path + "fft_error.jpg");
+%%
+fig = figure;
+plot(t, x, 'k', 'LineWidth',2,'Marker','.','MarkerSize',10, 'DisplayName','Truth');
+hold on;
+plot(t, x_arma,'color',	[0.8500 0.3250 0.0980], 'LineStyle','-','Marker','.','MarkerSize',1, 'LineWidth',2,'DisplayName','Prediction');
+plot(t(1:window+n_samples), x(:,1:window+n_samples),'color','b','LineStyle','-', 'LineWidth',2,'DisplayName','Training data');
+
+legend();
+ylabel('signal');
+xlabel('time');
+title("Window = " + num2str(window) + "; Training samples = " + num2str(n_samples));
+saveas(fig, save_path + "pred.jpg");
+%%
+fig = figure;
+hold on;
+plot(t, error(1,:),'color',	[0.8500 0.3250 0.0980], 'LineWidth',2, 'HandleVisibility','off'); 
+plot(t(1:window+n_samples), error(1,1:window+n_samples), 'color','b','LineStyle','-', 'LineWidth',2,'DisplayName','Training');
+y = ylim; % current y-axis limits
+x_idx = (window)*model.dt;
+plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2, 'DisplayName', 'Predictions start');
+ylabel('error');
+xlabel('time');
+title("Error between AR and true data w=" + num2str(window));
+legend();
+saveas(fig, save_path + "error.jpg");
+
+%% analyzing A
+
+A_DMD = [A_arma; eye(window-model.nx) zeros(window-model.nx,1)];
+
+[V,D,W] = eig(A_DMD);

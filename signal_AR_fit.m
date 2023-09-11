@@ -4,31 +4,38 @@ clc;clear;
 %% define signal
 fs = 100; % sampling freq.
 dt = 1/fs; % sampling interval
+fs_true = 200;
+dt_true = 1/fs_true;
 model.dt = dt;
 model.nx = 1;
 t_span = 10;
 t = 0:dt:t_span;
+t_true = 0:dt_true:t_span;
+true_model.dt = dt_true;
 t_steps = t_span/dt;
 f1 = 1;
 f2 = 10;
+f3 = 11;
+f4 = 30;
+f5 = 60; %freq out of domain sampling
 
-x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t);
-%x = sin(2*pi*f1*t);
+%x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t) + 0.5*sin(2*pi*f3*t)+ 0.5*sin(2*pi*f4*t);
+%x = sin(2*pi*f1*t)./((t+1).^3);
+x_true = sin(2*pi*f1*t_true) + sin(2*pi*f5*t_true);
+x = sin(2*pi*f1*t) + sin(2*pi*f5*t);
 x_max = max(x);
-figure;
-plot(t, x, 'LineWidth',2);
-ylabel('signal');
-xlabel('time');
-title('true signal');
+
+
+save_path = "/home/naveed/Documents/Dynamics_learning/plots/signals/2_sine/test/";
 
 %% plot fft.
 
-fft_signal(x,model,'FFT of True signal');
+fig = fft_signal(x_true,true_model,'FFT of True signal');
+saveas(fig, save_path + "fft_true.jpg");
 
 %% fit AR model.
-
 window = 4; % window / time delayed samples considered.
-n_samples = 81; % training samples columns of X
+n_samples = 1.0/model.dt; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
@@ -95,15 +102,38 @@ end
 error = (x - x_arma)./x_max;
 
 %% plot the data.
-
-figure;
+fig = fft_signal(x_arma,model,'FFT of AR predictions');
+saveas(fig, save_path + "fft_ar.jpg");
+fig = fft_signal(error,model,'FFT of error');
+saveas(fig, save_path + "fft_error.jpg");
+%%
+fig = figure;
+plot(t_true, x_true, 'k', 'LineWidth',2,'Marker','.','MarkerSize',10, 'DisplayName','Truth');
 hold on;
-plot(0:model.dt:t_span, error(1,:),'b','LineWidth',2, 'HandleVisibility','off'); 
+plot(t, x_arma,'color',	[0.8500 0.3250 0.0980], 'LineStyle','-','Marker','.','MarkerSize',1, 'LineWidth',2,'DisplayName','Prediction');
+plot(t(1:window+n_samples), x(:,1:window+n_samples),'color','b','LineStyle','-', 'LineWidth',2,'DisplayName','Training data');
+
+legend();
+ylabel('signal');
+xlabel('time');
+title("Window = " + num2str(window) + "; Training samples = " + num2str(n_samples));
+saveas(fig, save_path + "pred.jpg");
+%%
+fig = figure;
+hold on;
+plot(t, error(1,:),'color',	[0.8500 0.3250 0.0980], 'LineWidth',2, 'HandleVisibility','off'); 
+plot(t(1:window+n_samples), error(1,1:window+n_samples), 'color','b','LineStyle','-', 'LineWidth',2,'DisplayName','Training');
 y = ylim; % current y-axis limits
 x_idx = (window)*model.dt;
 plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2, 'DisplayName', 'Predictions start');
-ylabel('error - theta');
+ylabel('error');
 xlabel('time');
-title('Error between AR and true data');
+title("Error between AR and true data w=" + num2str(window));
 legend();
+saveas(fig, save_path + "error.jpg");
 
+%% analyzing A
+
+A_DMD = [A_arma; eye(window-model.nx) zeros(window-model.nx,1)];
+
+[V,D,W] = eig(A_DMD);

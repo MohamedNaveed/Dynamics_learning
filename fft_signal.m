@@ -1,4 +1,4 @@
-function [output] = fft_signal(signal, model, fig_title)
+function [fig] = fft_signal(signal, model, fig_title)
 
 T = model.dt; %time period
 Fs = 1/T; %sampling frequency
@@ -20,7 +20,7 @@ temp = phase(fft_signal);
 signal_phase = temp(:,1:L/2 + 1);
 
 if size(signal,1) == 2
-    figure;
+    fig = figure;
     subplot(2,1,1)
     plot(f,abs(P1(1,:)),'LineWidth',3);
     ylabel('theta');
@@ -31,7 +31,7 @@ if size(signal,1) == 2
     xlabel('freq');
 else
     
-    figure;
+    fig = figure;
     %subplot(2,1,1)
     plot(f,P1(1,:),'LineWidth',3);
     ylabel('magnitude');
