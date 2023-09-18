@@ -16,8 +16,8 @@ P1 = P2(:,1:L/2 + 1);
 P1(:,2:end-1) = 2*P1(:,2:end-1);
 f = Fs*(0:(L/2))/L;
 
-temp = phase(fft_signal);
-signal_phase = temp(:,1:L/2 + 1);
+%temp = phase(fft_signal);
+%signal_phase = temp(:,1:L/2 + 1);
 
 if size(signal,1) == 2
     fig = figure;

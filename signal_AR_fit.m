@@ -4,14 +4,14 @@ clc;clear;
 %% define signal
 fs = 100; % sampling freq.
 dt = 1/fs; % sampling interval
-fs_true = 200;
+fs_true = 200; % higher frequency to check for aliasing effects. 
 dt_true = 1/fs_true;
 model.dt = dt;
 model.nx = 1;
 t_span = 10;
-t = 0:dt:t_span;
-t_true = 0:dt_true:t_span;
-true_model.dt = dt_true;
+t = 0:dt:t_span;%
+%t_true = 0:dt_true:t_span;
+%true_model.dt = dt_true;
 t_steps = t_span/dt;
 f1 = 1;
 f2 = 10;
@@ -21,21 +21,24 @@ f5 = 60; %freq out of domain sampling
 
 %x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t) + 0.5*sin(2*pi*f3*t)+ 0.5*sin(2*pi*f4*t);
 %x = sin(2*pi*f1*t)./((t+1).^3);
-x_true = sin(2*pi*f1*t_true) + sin(2*pi*f5*t_true);
-x = sin(2*pi*f1*t) + sin(2*pi*f5*t);
+
+%x_true = sin(2*pi*f1*t_true) + sin(2*pi*f5*t_true); % to check for
+%aliasing effects.
+
+x = sin(2*pi*(f1 + 0.03*t).*t);
 x_max = max(x);
 
 
-save_path = "/home/naveed/Documents/Dynamics_learning/plots/signals/2_sine/test/";
+save_path = "/home/naveed/Documents/Dynamics_learning/plots/signals/1_sine/lin_freq/";
 
 %% plot fft.
 
-fig = fft_signal(x_true,true_model,'FFT of True signal');
+fig = fft_signal(x, model,'FFT of True signal');
 saveas(fig, save_path + "fft_true.jpg");
 
 %% fit AR model.
-window = 4; % window / time delayed samples considered.
-n_samples = 1.0/model.dt; % training samples columns of X
+window = 50; % window / time delayed samples considered.
+n_samples = 5.0/model.dt; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
@@ -108,7 +111,7 @@ fig = fft_signal(error,model,'FFT of error');
 saveas(fig, save_path + "fft_error.jpg");
 %%
 fig = figure;
-plot(t_true, x_true, 'k', 'LineWidth',2,'Marker','.','MarkerSize',10, 'DisplayName','Truth');
+plot(t, x, 'k', 'LineWidth',2,'Marker','.','MarkerSize',10, 'DisplayName','Truth');
 hold on;
 plot(t, x_arma,'color',	[0.8500 0.3250 0.0980], 'LineStyle','-','Marker','.','MarkerSize',1, 'LineWidth',2,'DisplayName','Prediction');
 plot(t(1:window+n_samples), x(:,1:window+n_samples),'color','b','LineStyle','-', 'LineWidth',2,'DisplayName','Training data');

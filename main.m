@@ -24,7 +24,7 @@ end
 x_max = max(x,[],2); % max value for normalization.
 
 %% find the error between the first cycle and the future cycles.
-
+%{
 T = 12; %number of time steps in a period. 1/model.dt for small angles. 12 for 90 deg x(0).
 x_cycle = x(:,1:T);
 error_true_evol = zeros(size(x));
@@ -52,7 +52,7 @@ hold on;
 plot(0:model.dt:t_span, error_true_evol(2,:),'b','LineWidth',2); 
 ylabel('error - theta dot');
 xlabel('time');
-
+%}
 %% plot the simulated data.
 
 t_span_plot = 20;
@@ -87,8 +87,8 @@ fft_signal(x(:,1:t_step_plot), model, 'FFT of True data');
 
 %% Hankel/Window DMD
 
-window = 20; % window / time delayed samples considered for Hankel DMD.
-n_samples = 81; % training samples columns of X
+window = 50; % window / time delayed samples considered for Hankel DMD.
+n_samples = 300; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
