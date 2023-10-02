@@ -19,17 +19,18 @@ f3 = 11;
 f4 = 30;
 f5 = 60; %freq out of domain sampling
 
-%x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t) + 0.5*sin(2*pi*f3*t)+ 0.5*sin(2*pi*f4*t);
+x = exp(-0.5*t).*sin(2*pi*(f1).*t);
+%x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t);% + 0.5*sin(2*pi*f3*t)+ 0.5*sin(2*pi*f4*t);
 %x = sin(2*pi*f1*t)./((t+1).^3);
 
 %x_true = sin(2*pi*f1*t_true) + sin(2*pi*f5*t_true); % to check for
 %aliasing effects.
 
-x = sin(2*pi*(f1 + 0.03*t).*t);
+
 x_max = max(x);
 
 
-save_path = "/home/naveed/Documents/Dynamics_learning/plots/signals/1_sine/lin_freq/";
+save_path = "/home/naveed/Documents/Dynamics_learning/plots/signals/test/";
 
 %% plot fft.
 
@@ -37,8 +38,8 @@ fig = fft_signal(x, model,'FFT of True signal');
 saveas(fig, save_path + "fft_true.jpg");
 
 %% fit AR model.
-window = 50; % window / time delayed samples considered.
-n_samples = 5.0/model.dt; % training samples columns of X
+window = 2; % window / time delayed samples considered.
+n_samples = 1.0/model.dt; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
@@ -50,6 +51,14 @@ for w = 1:window
     
 end
 
+Xprime = zeros(model.nx*window,n_samples);
+
+for w = 1:window
+    
+    Xprime(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) + 1 : ...
+                                            window - (w - 1) + n_samples );
+    
+end
 [U, S, V] = svd(X); %SVD of the data matrix 
 
 Xprime_arma = x(:,window + 1 : window + n_samples );
@@ -65,6 +74,9 @@ end
 sum_S = sum(diag_S); % sum of all the singular values. 
 
 if thresh == 1
+    
+    A_DMD = Xprime*pinv(X); %exact reconstruction of A (includes all the modes)
+    
     A_arma = Xprime_arma*pinv(X); %exact reconstruction of A (includes all the modes)
 else
     % finding the reduced number of modes to meet the threshold (thresh) value.
@@ -78,10 +90,16 @@ else
         end      
     end
     
+    A_DMD = Xprime*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
+    
     A_arma = Xprime_arma*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
 end
 
-%% prediction using A
+
+
+error_training = (Xprime_arma - A_arma*X)./x_max;
+RMSE = sqrt(mse(error_training))
+%% prediction using A_arma
 
 x_arma = zeros(model.nx,t_steps+1);
 
@@ -137,6 +155,9 @@ saveas(fig, save_path + "error.jpg");
 
 %% analyzing A
 
-A_DMD = [A_arma; eye(window-model.nx) zeros(window-model.nx,1)];
+A_DMD_arma = [A_arma; eye(window-model.nx) zeros(window-model.nx,1)];
 
 [V,D,W] = eig(A_DMD);
+diag_D = diag(D)
+frequencies = logm(D)/model.dt;
+diag_frequencies = diag(frequencies)

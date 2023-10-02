@@ -87,8 +87,8 @@ fft_signal(x(:,1:t_step_plot), model, 'FFT of True data');
 
 %% Hankel/Window DMD
 
-window = 50; % window / time delayed samples considered for Hankel DMD.
-n_samples = 300; % training samples columns of X
+window = 20; % window / time delayed samples considered for Hankel DMD.
+n_samples = 81; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
@@ -313,3 +313,10 @@ plot(0:model.dt:t_span, error(2,:),'b','LineWidth',2);
 ylabel('error - theta dot');
 xlabel('time');
 %}
+
+%% analyzing A
+
+[V,D,W] = eig(A_wDMD);
+diag_D = diag(D)
+frequencies = logm(D(1:r,1:r))/model.dt;
+diag_frequencies = diag(frequencies)./(2*pi)
