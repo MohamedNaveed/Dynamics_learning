@@ -2,13 +2,13 @@
 clc;clear;
 
 %% define signal
-fs = 100; % sampling freq.
+fs = 1; % sampling freq.
 dt = 1/fs; % sampling interval
 fs_true = 200; % higher frequency to check for aliasing effects. 
 dt_true = 1/fs_true;
 model.dt = dt;
-model.nx = 1;
-t_span = 10;
+model.nx = 2;
+t_span = 100;
 t = 0:dt:t_span;%
 %t_true = 0:dt_true:t_span;
 %true_model.dt = dt_true;
@@ -19,15 +19,24 @@ f3 = 11;
 f4 = 30;
 f5 = 60; %freq out of domain sampling
 
-x = exp(-0.5*t).*sin(2*pi*(f1).*t);
+%x = exp(-0.5*t).*sin(2*pi*(f1).*t);
 %x = sin(2*pi*f1*t) + 0.5*sin(2*pi*f2*t);% + 0.5*sin(2*pi*f3*t)+ 0.5*sin(2*pi*f4*t);
 %x = sin(2*pi*f1*t)./((t+1).^3);
 
 %x_true = sin(2*pi*f1*t_true) + sin(2*pi*f5*t_true); % to check for
 %aliasing effects.
+N = 11;
+
+omega_0 = 2*pi/N;
+a_actual = [2,1,1,2;1, 0, 0, 1];
+a_vec = [1 2;0 1];
+
+x = a_vec(:,1)*(exp(omega_0*1i.*t) + exp(-omega_0*1i.*t))...
+    + a_vec(:,2)*(exp(2*omega_0*1i.*t) + exp(-2*omega_0*1i.*t));
 
 
-x_max = max(x);
+
+x_max = max(x,[],2); 
 
 
 save_path = "/home/naveed/Documents/Dynamics_learning/plots/signals/test/";
@@ -39,7 +48,7 @@ saveas(fig, save_path + "fft_true.jpg");
 
 %% fit AR model.
 window = 2; % window / time delayed samples considered.
-n_samples = 1.0/model.dt; % training samples columns of X
+n_samples = 20;%1.0/model.dt; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
@@ -155,9 +164,75 @@ saveas(fig, save_path + "error.jpg");
 
 %% analyzing A
 
-A_DMD_arma = [A_arma; eye(window-model.nx) zeros(window-model.nx,1)];
 
+disp('DMD eigenvalues')
 [V,D,W] = eig(A_DMD);
 diag_D = diag(D)
 frequencies = logm(D)/model.dt;
 diag_frequencies = diag(frequencies)
+
+A_DMD_arma = [A_arma; eye(window*model.nx-model.nx) zeros(window*model.nx-model.nx,model.nx)];
+disp('AR eigenvalues')
+[V,D,W] = eig(A_DMD_arma);
+diag_D = diag(D)
+frequencies = logm(D)/model.dt;
+diag_frequencies = diag(frequencies)
+
+%% analysis using Fourier and Vandermonde matrix
+
+Vand_mat = complex(zeros(window,window)); % vandermonde matrix
+freq_idx = [-2,-1,1,2];
+time_idx = 2:window+1;%0:window-1;
+
+for row_id = 1:window
+    for col_id = 1:window
+
+        Vand_mat(row_id,col_id) = exp(1i*omega_0*freq_idx(row_id)*time_idx(col_id));
+
+    end
+end
+
+x_pred_modes = complex(zeros(window,1));
+
+pred_idx = window+2;
+for k = 1:window
+    x_pred_modes(k) = exp(1i*omega_0*freq_idx(k)*pred_idx);
+end
+
+%% check if prediction are correct
+x_pred_from_a = a_actual*Vand_mat;
+
+arma_par_fourier = Vand_mat\x_pred_modes;
+
+est_a = x(:,pred_idx-window+1:pred_idx)/Vand_mat;
+
+%% checking if the scalar arma from fourier is equivalent to vector arma
+A_arma_fourier = zeros(model.nx,model.nx*window);
+
+for i=1:window
+    A_arma_fourier(:,(i-1)*model.nx+1:i*model.nx) = arma_par_fourier(window-i+1)*eye(model.nx);
+end
+
+x_arma_fourier = zeros(model.nx,t_steps+1);
+
+y_arma_fourier = zeros(model.nx*window,1); %observable
+
+%initial condition
+for w = 1:window
+    y_arma_fourier(model.nx*(window - w) + 1:model.nx*(window - w + 1)) = x(:,w);
+end
+
+x_arma_fourier(:,1:window) = x(:,1:window); %assume same for the first few steps. 
+
+for i = window:t_steps
+
+    x_arma_fourier(:,i+1) = A_arma_fourier*y_arma_fourier; 
+    y_arma_fourier = [x_arma_fourier(:,i+1);y_arma_fourier(1:model.nx*(window-1))];
+end
+
+%% error 
+
+error_fourier = (x - x_arma_fourier)./x_max;
+
+
+

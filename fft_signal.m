@@ -3,7 +3,7 @@ function [fig] = fft_signal(signal, model, fig_title)
 T = model.dt; %time period
 Fs = 1/T; %sampling frequency
 
-L = length(signal)+1;
+L = 1000*(length(signal)+1);
 %NFFT = L;%1024;
 
 fft_signal = fft(signal, L, 2);
