@@ -1,4 +1,4 @@
-% main file 
+%% analysis file for different values of time delays and training window.
 clc;clear;
 
 %% define pendulum      
@@ -56,72 +56,91 @@ title('Phase portrait');
 
 fft_signal(x(:,1:t_step_plot), model, 'FFT of True data');
 
-%% Hankel/Window DMD
-
-window = 4; % window / time delayed samples considered for Hankel DMD.
+%% Hankel/Window DMD by varying the time-delays
 
 n_samples = 100; % training samples columns of X
+window_max = 20;
+error_fit = zeros(window_max,1);
 
-X = zeros(model.nx*window,n_samples);
+for window_vals = 1:window_max
 
-% creating the data matrix.
-for w = 1:window
-    
-    X(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) : ...
-                                           window - (w - 1) + n_samples -1);
-    
-end
 
-Xprime = zeros(model.nx*window,n_samples);
-
-for w = 1:window
+    window = window_vals; % window / time delayed samples considered for Hankel DMD.
     
-    Xprime(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) + 1 : ...
-                                            window - (w - 1) + n_samples );
+    X = zeros(model.nx*window,n_samples);
     
-end
-
-% solve for A 
-[U, S, V] = svd(X); %SVD of the data matrix 
-    
- 
-    
-thresh = 0.99999; % threshold for selecting the modes 
-                   % 1 - for selecting all the modes. 
-                   % 0.99999 - 99.999% energy in the modes
-
-diag_S = diag(S);
-sum_S = sum(diag_S); % sum of all the singular values. 
-
-if thresh == 1
-    A_wDMD = Xprime*pinv(X); %exact reconstruction of A (includes all the modes)
-    disp('thresh = 1');
-    r = length(diag_S);
-else
-    % finding the reduced number of modes to meet the threshold (thresh) value.
-    for S_i = 1:length(diag_S)
-   
-        sum_S_i = sum(diag_S(1:S_i)); % partial sum of all the singular values. 
-    
-        if sum_S_i/sum_S >= thresh
-            r = S_i;
-            break;
-        end      
+    % creating the data matrix.
+    for w = 1:window
+        
+        X(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) : ...
+                                               window - (w - 1) + n_samples -1);
+        
     end
     
-    A_wDMD = Xprime*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
+    Xprime = zeros(model.nx*window,n_samples);
+    
+    for w = 1:window
+        
+        Xprime(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) + 1 : ...
+                                                window - (w - 1) + n_samples );
+        
+    end
+    
+    % solve for A 
+    [U, S, V] = svd(X); %SVD of the data matrix 
+        
+     
+        
+    thresh = 0.99999; % threshold for selecting the modes 
+                       % 1 - for selecting all the modes. 
+                       % 0.99999 - 99.999% energy in the modes
+    
+    diag_S = diag(S);
+    sum_S = sum(diag_S); % sum of all the singular values. 
+    
+    if thresh == 1
+        A_wDMD = Xprime*pinv(X); %exact reconstruction of A (includes all the modes)
+        disp('thresh = 1');
+        r = length(diag_S);
+    else
+        % finding the reduced number of modes to meet the threshold (thresh) value.
+        for S_i = 1:length(diag_S)
+       
+            sum_S_i = sum(diag_S(1:S_i)); % partial sum of all the singular values. 
+        
+            if sum_S_i/sum_S >= thresh
+                r = S_i;
+                break;
+            end      
+        end
+        
+        A_wDMD = Xprime*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
+    end
+    
+    
+    fprintf('Rank of X matrix: %d \n', rank(X));
+    fprintf('Size of A matrix: %d \n', length(A_wDMD));
+    fprintf('Rank of A matrix: %d \n', rank(A_wDMD));
+    
+    %% calculate error in the training data.
+    error_temp = Xprime - A_wDMD*X;
+    error_fit(window_vals) = sqrt(sum(error_temp.^2, 'all')); %2-norm of the error
+
+    
 end
 
+%% plot the error vs. time-delays.
+fig = figure;
+font_size 
+semilogy(1:window_max, error_fit, 'k', 'LineWidth', 2, 'Marker', 'o');
+xlabel('time-delays');
+ylabel('$||\epsilon||_{2}$', 'Interpreter','latex');
+grid on;
+ax = findobj(gcf,'type','axes'); % current axes
+set(ax, 'FontSize', font_size);
+save_plot(fig, 'error_vs_timedelays.pdf')
 
-fprintf('Rank of X matrix: %d \n', rank(X));
-fprintf('Size of A matrix: %d \n', length(A_wDMD));
-fprintf('Rank of A matrix: %d \n', rank(A_wDMD));
 
-%% calculate error in the training data.
-
-error_fit = Xprime - A_wDMD*X;
-
-fprintf('Max training error using A = %d \n', max(max(error_fit)));
 
 %% prediction using A
 
