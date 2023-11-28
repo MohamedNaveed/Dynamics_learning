@@ -18,7 +18,7 @@ ini_angle = 90; %deg
 [A, A_r, error_fit_A, error_fit_Ar, U, S, V] = model_fit(method, model, window, n_samples, t_span, ini_angle);
 
 % A - computed considering all the modes.
-% A_r - computed considering 99.99% energy in the modes. 
+% A_r - computed considering 99.999% energy in the modes. 
 
 fprintf('Max training error A = %d \n', max(max(error_fit_A)));
 fprintf('Max training error Ar = %d \n', max(max(error_fit_Ar)));

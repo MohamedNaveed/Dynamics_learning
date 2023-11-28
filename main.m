@@ -20,9 +20,7 @@ for i = 1:t_steps
     
 end
 
-
 x_max = max(x,[],2); % max value for normalization.
-
 
 %% plot the simulated data.
 
@@ -103,8 +101,8 @@ xlabel('time');
 
 %% Hankel/Window DMD
 
-window = 20; % window / time delayed samples considered for Hankel DMD.
-n_samples = 81; % training samples columns of X
+window = 3; % window / time delayed samples considered for Hankel DMD.
+n_samples = 6; % training samples columns of X
 
 X = zeros(model.nx*window,n_samples);
 
