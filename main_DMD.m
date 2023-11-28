@@ -58,7 +58,7 @@ fft_signal(x(:,1:t_step_plot), model, 'FFT of True data');
 
 %% Hankel/Window DMD
 
-window = 4; % window / time delayed samples considered for Hankel DMD.
+window = 11; % window / time delayed samples considered for Hankel DMD.
 
 n_samples = 100; % training samples columns of X
 

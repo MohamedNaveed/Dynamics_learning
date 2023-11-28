@@ -4,10 +4,10 @@ clc;clear;
 %% define pendulum      
 model = pendulum_model(); 
 x0 = [deg2rad(90),0]; %initial state (deg) . 0 - pendulum hanging downwards. 
-
+period = 12; %(time-steps) ~1.2 s 
 %% simulate the pendulum motion (ground truth data)
 
-t_span = 20; % (seconds) 
+t_span = 26; % (seconds) 
 t_steps = t_span/model.dt; % number of time steps
 x = zeros(model.nx, t_steps+1); % state
 
@@ -25,7 +25,7 @@ x_max = max(x,[],2); % max value for normalization.
 
 %% plot the simulated data.
 
-t_span_plot = 20;
+t_span_plot = 24;
 t_step_plot = t_span_plot/model.dt + 1; 
 t_idxs = (0:t_step_plot-1)*model.dt;
 
@@ -38,12 +38,6 @@ subplot(2,1,2);
 plot(t_idxs, x(2,1:t_step_plot),'LineWidth',2); 
 ylabel('theta dot');
 xlabel('time');
-
-set(fig,'Units','inches');
-screenposition = get(fig,'Position');
-set(fig,...
-    'PaperPosition',[0 0 screenposition(3:4)],...
-        'PaperSize',[screenposition(3:4)]);
 
 fig = figure;
 plot(x(1,1:t_step_plot),x(2,1:t_step_plot),'LineWidth',0.5);
@@ -124,7 +118,7 @@ for window_vals = 1:window_max
     
     %% calculate error in the training data.
     error_temp = Xprime - A_wDMD*X;
-    error_fit(window_vals) = sqrt(sum(error_temp.^2, 'all')); %2-norm of the error
+    error_fit(window_vals) = sqrt(sum(error_temp.^2, 'all')/numel(error_temp)); %2-norm of the error
 
     
 end
@@ -132,7 +126,7 @@ end
 %% plot the error vs. time-delays.
 fig = figure;
 font_size = 14;
-semilogy(1:window_max, error_fit, 'k', 'LineWidth', 2, 'Marker', 'o');
+semilogy(1:window_max, error_fit, 'k', 'LineWidth', 2, 'Marker', 'o','MarkerFaceColor','auto');
 xlabel('time-delays');
 ylabel('$||\epsilon||_{2}$', 'Interpreter','latex');
 grid on;
@@ -141,6 +135,66 @@ set(ax, 'FontSize', font_size);
 %yticks_values = [0, 5, 10, 15, 20];
 %yticks(yticks_values);
 save_plot(fig, 'error_vs_timedelays.pdf')
+
+
+%% error in predictions
+
+window = 11; % window / time delayed samples considered for Hankel DMD.
+n_samples = 100; % training samples columns of X
+X = zeros(model.nx*window,n_samples);
+
+% creating the data matrix.
+for w = 1:window
+    
+    X(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) : ...
+                                           window - (w - 1) + n_samples -1);
+    
+end
+
+Xprime = zeros(model.nx*window,n_samples);
+
+for w = 1:window
+    
+    Xprime(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) + 1 : ...
+                                            window - (w - 1) + n_samples );
+    
+end
+
+% solve for A 
+[U, S, V] = svd(X); %SVD of the data matrix 
+    
+ 
+    
+thresh = 0.99999; % threshold for selecting the modes 
+                   % 1 - for selecting all the modes. 
+                   % 0.99999 - 99.999% energy in the modes
+
+diag_S = diag(S);
+sum_S = sum(diag_S); % sum of all the singular values. 
+
+if thresh == 1
+    A_wDMD = Xprime*pinv(X); %exact reconstruction of A (includes all the modes)
+    disp('thresh = 1');
+    r = length(diag_S);
+else
+    % finding the reduced number of modes to meet the threshold (thresh) value.
+    for S_i = 1:length(diag_S)
+   
+        sum_S_i = sum(diag_S(1:S_i)); % partial sum of all the singular values. 
+    
+        if sum_S_i/sum_S >= thresh
+            r = S_i;
+            break;
+        end      
+    end
+    
+    A_wDMD = Xprime*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
+end
+
+
+fprintf('Rank of X matrix: %d \n', rank(X));
+fprintf('Size of A matrix: %d \n', length(A_wDMD));
+fprintf('Rank of A matrix: %d \n', rank(A_wDMD));
 
 
 
@@ -166,74 +220,106 @@ end
 %% error 
 
 error = (x - x_wDMD)./x_max;
+error_2_norm = sqrt(sum(error.^2));
 
 %% plot the data.
 
 fig=figure;
-subplot(2,1,1);
 hold on;
-
-plot(0:model.dt:t_span, error(1,:),'b','LineWidth',2, 'HandleVisibility','off'); 
-y = ylim; % current y-axis limits
-x_idx = (window)*model.dt;
-plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2, 'DisplayName', 'Predictions start');
-x_idx_train = (window + n_samples)*model.dt;
-plot([x_idx_train  x_idx_train],[y(1) y(2)],'color',"#7E2F8E",'LineWidth',3, 'DisplayName', 'Training window');
-ylabel('error - theta');
-title('Error between wDMD and truth');
-legend();
-
-subplot(2,1,2);
-hold on;
-plot(0:model.dt:t_span, error(2,:),'b','LineWidth',2); 
-y = ylim; % current y-axis limits
-x_idx = (window)*model.dt;
-plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2); % to show the prediction starting point
-x_idx_train = (window + n_samples)*model.dt;
-plot([x_idx_train  x_idx_train],[y(1) y(2)],'color',"#7E2F8E",'LineWidth',3, 'DisplayName', 'Training window');
-ylabel('error - theta dot');
-xlabel('time');
-%saveas(fig,'error_w_20_x0_90.pdf')
-
-fig=figure;
-subplot(2,1,1);
-hold on;
-plot(0:model.dt:t_span, x(1,:)./x_max(1),'b','LineWidth',2); 
-plot(0:model.dt:t_span, x_wDMD(1,:)./x_max(1),'--r','LineWidth',2); 
-y = ylim; % current y-axis limits
-x_idx = (window)*model.dt;
-plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2);
-x_idx_train = (window + n_samples)*model.dt;
-plot([x_idx_train  x_idx_train],[y(1) y(2)],'color',"#7E2F8E",'LineWidth',3, 'DisplayName', 'Training window');
-ylabel('error - theta');
-legend('True','wDMD');
-title('Predicted response using wDMD');
-
-subplot(2,1,2);
-hold on;
-plot(0:model.dt:t_span, x(2,:)./x_max(2), 'b','LineWidth',2); 
-plot(0:model.dt:t_span, x_wDMD(2,:)./x_max(2),'--r','LineWidth',2);
-ylim([-1,1])
-y = ylim; % current y-axis limits
-x_idx = (window)*model.dt;
-plot([x_idx  x_idx],[y(1) y(2)],'k','LineWidth',2);
-x_idx_train = (window + n_samples)*model.dt;
-plot([x_idx_train  x_idx_train],[y(1) y(2)],'color',"#7E2F8E",'LineWidth',3, 'DisplayName', 'Training window');
-ylabel('error - theta dot');
-xlabel('time');
-%saveas(fig,'wDMD_w_20_x0_90.pdf')
+t_idxs = ((window+1):t_steps)/period - 1;
+plot(t_idxs, error_2_norm(window+1:end-1),'r','LineWidth',1,...
+            'Marker', 'o','MarkerFaceColor','auto', 'MarkerSize',3); 
+grid on;
+xlim([0,20]);
+ylabel('$||\epsilon||_{2}$', 'Interpreter','latex');
+xlabel('$W_{PRED}$ (Periods)', 'Interpreter','latex');
+save_plot(fig, 'pred_error_w11.pdf')
 
 
-%% fft of error.
-fft_signal(error, model, 'FFT of error');
-fft_signal(x_wDMD, model, 'FFT of wDMD predictions');
+%% error vs training data.
 
- %% analyzing A
+window = 11;
+min_samples = window;
+max_samples = t_steps - window;
+sample_vals = min_samples:max_samples;
+error_fit = zeros(length(sample_vals),1);
 
-[V,D,W] = eig(A_wDMD);
-diag_D = diag(D)
-frequencies = logm(D(1:r,1:r))/model.dt;
-diag_frequencies = diag(frequencies)./(2*pi)
-plot_eigenvalues(diag_D);
+for sample_idx = 1:length(sample_vals)
 
+    n_samples = sample_vals(sample_idx); % training samples columns of X
+    
+    X = zeros(model.nx*window,n_samples);
+    
+    % creating the data matrix.
+    for w = 1:window
+        
+        X(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) : ...
+                                               window - (w - 1) + n_samples -1);
+        
+    end
+    
+    Xprime = zeros(model.nx*window,n_samples);
+    
+    for w = 1:window
+        
+        Xprime(model.nx*(w-1) +1:model.nx*w,:) = x(:,window - (w - 1) + 1 : ...
+                                                window - (w - 1) + n_samples );
+        
+    end
+    
+    % solve for A 
+    [U, S, V] = svd(X); %SVD of the data matrix 
+        
+     
+        
+    thresh = 0.99999; % threshold for selecting the modes 
+                       % 1 - for selecting all the modes. 
+                       % 0.99999 - 99.999% energy in the modes
+    
+    diag_S = diag(S);
+    sum_S = sum(diag_S); % sum of all the singular values. 
+    
+    if thresh == 1
+        A_wDMD = Xprime*pinv(X); %exact reconstruction of A (includes all the modes)
+        disp('thresh = 1');
+        r = length(diag_S);
+    else
+        % finding the reduced number of modes to meet the threshold (thresh) value.
+        for S_i = 1:length(diag_S)
+       
+            sum_S_i = sum(diag_S(1:S_i)); % partial sum of all the singular values. 
+        
+            if sum_S_i/sum_S >= thresh
+                r = S_i;
+                break;
+            end      
+        end
+        
+        A_wDMD = Xprime*V(:,1:r)*inv(S(1:r,1:r))*U(:,1:r)'; % A calculated using reduced modes.
+    end
+    
+    
+    fprintf('Rank of X matrix: %d \n', rank(X));
+    fprintf('Size of A matrix: %d \n', length(A_wDMD));
+    fprintf('Rank of A matrix: %d \n', rank(A_wDMD));
+    
+    %% calculate error in the training data.
+    error_temp = Xprime - A_wDMD*X;
+    error_fit(sample_idx) = sqrt(sum(error_temp.^2, 'all')/numel(error_temp)); %2-norm of the error
 
+    
+end
+
+%% plot the error vs. training window.
+fig = figure;
+font_size = 14;
+x_idxs = (1:length(sample_vals))/period;
+semilogy(x_idxs, error_fit, 'b', 'LineWidth', 2, 'Marker', 'o','MarkerFaceColor','auto');
+xlabel('$W_{TRN}$ (Periods)', 'Interpreter','latex');
+ylabel('$||\epsilon||_{2}$', 'Interpreter','latex');
+grid on;
+ax = findobj(gcf,'type','axes'); % current axes
+set(ax, 'FontSize', font_size);
+%yticks_values = [0, 5, 10, 15, 20];
+%yticks(yticks_values);
+save_plot(fig, 'error_vs_train_window.pdf')
