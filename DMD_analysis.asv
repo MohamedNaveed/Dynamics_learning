@@ -222,7 +222,7 @@ end
 error = (x - x_wDMD)./x_max;
 error_2_norm = sqrt(sum(error.^2));
 
-%% plot the data.
+%% plot the error data.
 
 fig=figure;
 hold on;
@@ -235,6 +235,17 @@ ylabel('$||\epsilon||_{2}$', 'Interpreter','latex');
 xlabel('$W_{PRED}$ (Periods)', 'Interpreter','latex');
 save_plot(fig, 'pred_error_w11.pdf')
 
+%% plot the error in states
+fig=figure;
+hold on;
+t_idxs = ((window+1):t_steps)/period - 1;
+plot(t_idxs, error(1,window+1:end-1).*100,'r','LineWidth',2);
+plot(t_idxs, error(2,window+1:end-1).*100,'b','LineWidth',2);
+grid on;
+xlim([0,20]);
+ylabel('% Error', 'Interpreter','latex');
+xlabel('$W_{PRED}$ (Periods)', 'Interpreter','latex');
+save_plot(fig, 'pred_error_states_w11.pdf')
 
 %% error vs training data.
 
@@ -313,8 +324,9 @@ end
 %% plot the error vs. training window.
 fig = figure;
 font_size = 14;
-semilogy(1:length(sample_vals), error_fit, 'k', 'LineWidth', 2, 'Marker', 'o','MarkerFaceColor','auto');
-xlabel('');
+x_idxs = (1:length(sample_vals))/period;
+semilogy(x_idxs, error_fit, 'b', 'LineWidth', 2, 'Marker', 'o','MarkerFaceColor','auto');
+xlabel('$W_{TRN}$ (Periods)', 'Interpreter','latex');
 ylabel('$||\epsilon||_{2}$', 'Interpreter','latex');
 grid on;
 ax = findobj(gcf,'type','axes'); % current axes

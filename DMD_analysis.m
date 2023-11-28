@@ -222,7 +222,7 @@ end
 error = (x - x_wDMD)./x_max;
 error_2_norm = sqrt(sum(error.^2));
 
-%% plot the data.
+%% plot the error data.
 
 fig=figure;
 hold on;
@@ -233,8 +233,24 @@ grid on;
 xlim([0,20]);
 ylabel('$||\epsilon||_{2}$', 'Interpreter','latex');
 xlabel('$W_{PRED}$ (Periods)', 'Interpreter','latex');
-save_plot(fig, 'pred_error_w11.pdf')
+ax = findobj(gcf,'type','axes'); % current axes
+set(ax, 'FontSize', 14);
+save_plot(fig, 'PRED_oscillator.pdf')
 
+%% plot the error in states
+fig=figure;
+hold on;
+t_idxs = ((window+1):t_steps)/period - 1;
+plot(t_idxs, error(1,window+1:end-1).*100,'r','LineWidth',2);
+plot(t_idxs, error(2,window+1:end-1).*100,'-.b','LineWidth',1);
+grid on;
+xlim([0,20]);
+legend('$\theta$', '$\dot{\theta}$', 'Interpreter','latex','FontSize',16)
+ylabel('$\%$ Error', 'Interpreter','latex');
+xlabel('$W_{PRED}$ (Periods)', 'Interpreter','latex');
+ax = findobj(gcf,'type','axes'); % current axes
+set(ax, 'FontSize', 14);
+save_plot(fig, 'PRED_Err_oscillator.pdf')
 
 %% error vs training data.
 

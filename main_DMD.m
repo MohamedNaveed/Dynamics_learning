@@ -7,7 +7,7 @@ x0 = [deg2rad(90),0]; %initial state (deg) . 0 - pendulum hanging downwards.
 
 %% simulate the pendulum motion (ground truth data)
 
-t_span = 20; % (seconds) 
+t_span = 26; % (seconds) 
 t_steps = t_span/model.dt; % number of time steps
 x = zeros(model.nx, t_steps+1); % state
 
